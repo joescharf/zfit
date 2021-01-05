@@ -1,0 +1,17 @@
+{
+  "folders": [
+    {
+      "path": "."
+    },
+    {
+      "path": "../../src/python-fitanalysis"
+    },
+    {
+      "path": "../../src/FITView"
+    },
+    {
+      "path": "../../src/FitSDKRelease_21.40.00"
+    }
+  ],
+  "settings": {}
+}

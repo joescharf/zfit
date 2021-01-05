@@ -1,0 +1,219 @@
+package cmd
+
+import (
+	"bytes"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"sort"
+
+	movingaverage "github.com/RobinUS2/golang-moving-average"
+	"github.com/davecgh/go-spew/spew"
+	"github.com/gocarina/gocsv"
+	"github.com/mxmCherry/movavg"
+	"github.com/tormoder/fit"
+)
+
+type Average struct {
+	T       int     `csv:"t"`
+	Pwr     uint16  `csv:"pwr"`
+	FiveS   float64 `csv:"5s"`
+	OneM    float64 `csv:"1m"`
+	FiveM   float64 `csv:"5m"`
+	TenM    float64 `csv:"10m"`
+	TwentyM float64 `csv:"20m"`
+}
+
+func main() {
+	Example()
+}
+
+func Example() {
+	// Read our fit test file data
+	testFile := filepath.Join("./", "toronto.fit")
+	testData, err := ioutil.ReadFile(testFile)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	pwrFile, err := os.OpenFile("toronto.csv", os.O_RDWR|os.O_CREATE, os.ModePerm)
+	if err != nil {
+		panic(err)
+	}
+	defer pwrFile.Close()
+
+	// Decode the fitData file data
+	fitData, err := fit.Decode(bytes.NewReader(testData))
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	// Get the actual activity
+	activity, err := fitData.Activity()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	// Inspect the TimeCreated field in the FileId message
+	fmt.Println("Time Created: ", fitData.FileId.TimeCreated)
+
+	// Inspect the dynamic Product field in the FileId message
+	fmt.Println("Product: ", fitData.FileId.GetProduct())
+
+	// Inspect the fitData file type
+	fmt.Println("FileID: ", fitData.FileId)
+	fmt.Printf("File type: %s\n\n", fitData.Type())
+
+	// Print the sport of the first Session message
+	for _, session := range activity.Sessions {
+		fmt.Println(session.Sport)
+		break
+	}
+
+	spew.Dump(fitData.Header)
+	fmt.Printf("Activity data: Sessions: %v, Records: %v, Events: %v, Hrvs: %v\n", len(activity.Sessions), len(activity.Records), len(activity.Events), len(activity.Hrvs))
+	fmt.Printf("Activity timestamp resolution: Timestamp 0: %v, Timestamp 1: %v, diff: %v\n", activity.Records[1000].Timestamp, activity.Records[1001].Timestamp, activity.Records[1].Timestamp.Unix()-activity.Records[0].Timestamp.Unix())
+
+	// Session stuff:
+	fmt.Println("")
+	for i, sess := range activity.Sessions {
+		fmt.Printf("Session Information for session %d:\n", i)
+		fmt.Printf("Power: Avg, Max, Normalized [%d, %d, %d]\n", sess.AvgPower, sess.MaxPower, sess.NormalizedPower)
+		fmt.Printf("HR: Avg, Max [%d, %d]\n", sess.AvgHeartRate, sess.MaxHeartRate)
+		fmt.Printf("TSS: %d\n\n", sess.TrainingStressScore)
+	}
+
+	// Event stuff:
+	for i, e := range activity.Events {
+		fmt.Printf("Event Information for event %d:\n", i)
+		fmt.Printf("%v - EventType: %s\n\n", e.Timestamp, e.EventType.String())
+	}
+	// Moving average calculation
+	maPwr := movingaverage.New(30) // 30 is the window size
+	maHR := movingaverage.New(30)  // 30 is the window size
+
+	// load the first 30 records of power data:
+	for i := 0; i < 30; i++ {
+		maPwr.Add(float64(activity.Records[i].Power))
+		maHR.Add(float64(activity.Records[i].HeartRate))
+	}
+	count := 0
+	sumPwr := 0.0
+	sumHR := 0.0
+
+	// Now continue with the rest of the data
+	for _, v := range activity.Records[30:] {
+		// fmt.Printf("%f ", maPwr.Avg())
+		sumPwr = sumPwr + maPwr.Avg()
+		sumHR = sumHR + maHR.Avg()
+		count++
+		maPwr.Add(float64(v.Power))
+		maHR.Add(float64(v.HeartRate))
+	}
+	avgPwr := sumPwr / float64(count)
+	avgHR := sumHR / float64(count)
+	fmt.Printf("Records: %d, Count: %d, \n", len(activity.Records), count)
+	fmt.Printf("SumPwr: %f, AvgPwr: %f\n", sumPwr, avgPwr)
+	fmt.Printf("SumHR: %f, AvgHR: %f\n\n", sumHR, avgHR)
+
+	// Lets calculate top 20m power:
+	// 1. sort the power descending
+	p := make([]uint16, len(activity.Records))
+	for i, v := range activity.Records {
+		p[i] = v.Power
+	}
+	sort.Slice(p, func(i, j int) bool {
+		return p[i] > p[j]
+	})
+
+	// 2. 20m average: (second intervals * 20 minutes = 20*60=1200)
+	var sum20 uint64
+	for _, v := range p[0:1200] {
+		// fmt.Printf("%d %d | ", v, sum20)
+		sum20 = sum20 + uint64(v)
+	}
+	avg20 := sum20 / 1200
+	avg2095 := float64(avg20) * 0.95
+	avg20wkg := float64(avg20) / 75.3
+	avg2095wkg := avg2095 / 75.3
+
+	fmt.Printf("len(p): %d, Sum20: %d, Avg20: %d, Avg20 * .95: %f\n", len(p), sum20, avg20, avg2095)
+	fmt.Printf("Average Power: 20m: %d, 20m(.95): %f\n", avg20, avg2095)
+	fmt.Printf("Average wkg: 20m: %f, 20m(.95): %f\n\n", avg20wkg, avg2095wkg)
+
+	//////////////////////////////////////////////
+	// Multi Moving average: 5s, 1m, 5m, 10m, 20m
+	records := activity.Records[0:]
+	powerData := make([]float64, len(records))
+	avgData := make([][]float64, len(records))
+	avgs := make([]*Average, len(records))
+
+	multi := movavg.Multi{
+		movavg.NewSMA(5),
+		movavg.NewSMA(60),
+		movavg.NewSMA(300),
+		movavg.NewSMA(600),
+		movavg.NewSMA(1200),
+	}
+	// multiMA := movavg.MultiThreadSafe(multi)
+	multiMA := movavg.MultiThreadSafe(multi)
+
+	// Load the power data:
+	for i, v := range records {
+		powerData[i] = float64(v.Power)
+	}
+
+	// Iterate on power data and get the moving averages:
+	fmt.Println("")
+	for i := range powerData {
+		avg := multiMA.Add(powerData[i])
+
+		avgData[i] = avg
+
+		// Map the avg array:
+		avgs[i] = &Average{
+			T:   i,
+			Pwr: activity.Records[i].Power,
+		}
+
+		if i > 1200 {
+			avgs[i].TwentyM = avg[4]
+			avgs[i].TenM = avg[3]
+			avgs[i].FiveM = avg[2]
+			avgs[i].OneM = avg[1]
+			avgs[i].FiveS = avg[0]
+		} else if i > 600 {
+			avgs[i].TenM = avg[3]
+			avgs[i].FiveM = avg[2]
+			avgs[i].OneM = avg[1]
+			avgs[i].FiveS = avg[0]
+		} else if i > 300 {
+			avgs[i].FiveM = avg[2]
+			avgs[i].OneM = avg[1]
+			avgs[i].FiveS = avg[0]
+		} else if i > 60 {
+			avgs[i].OneM = avg[1]
+			avgs[i].FiveS = avg[0]
+		} else if i > 5 {
+			avgs[i].FiveS = avg[0]
+		}
+	}
+
+	// Save CSV to file
+	err = gocsv.MarshalFile(&avgs, pwrFile)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Results:")
+	fmt.Printf("Power Records: %d\n", len(powerData))
+	// for i, _ := range avgs {
+	// fmt.Printf("t, Pwr, 5s, 1m, 5m, 10m, 20m: [%d, %d, %.2f, %.2f, %.2f, %.2f, %.2f]\n", avgs[i].T, avgs[i].Pwr, avgs[i].FiveS, avgs[i].OneM, avgs[i].FiveM, avgs[i].TenM, avgs[i].TwentyM)
+	// }
+	// fmt.Printf("Max Power Bands: %v\n", maxMA)
+	// fmt.Printf("Max Power wkg: %v\n", wkg)
+
+}
