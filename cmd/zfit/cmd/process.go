@@ -42,11 +42,11 @@ var RESULTS zfit.Results
 func process(args []string) {
 	// process argument (filename)
 	f := args[0]
-	base := filepath.Base(f)
+	dir, base := filepath.Split(f)
 	ext := filepath.Ext(base)
 	fileName := strings.Replace(base, ext, "", -1)
-	fitFileName := filepath.Join("./", base)
-	csvFileName := fmt.Sprintf("%s.csv", fileName)
+	fitFileName := filepath.Join(dir, base)
+	csvFileName := filepath.Join(dir, fmt.Sprintf("%s.csv", fileName))
 
 	log.WithFields(log.Fields{
 		"fileName":    fileName,
@@ -135,9 +135,9 @@ func mma(activity *fit.ActivityFile) {
 	DATA.Speed = make([]uint16, len(RECORDS))
 	DATA.Cadence = make([]uint8, len(RECORDS))
 	DATA.MAArray = make([][]float64, len(RECORDS))
-	DATA.Ticks = make([]*Tick, len(RECORDS))
+	DATA.Ticks = make([]*zfit.Tick, len(RECORDS))
 
-	RESULTS.MAMax = make(map[int]*MAResult)
+	RESULTS.MAMax = make(map[int]*zfit.MAResult)
 
 	multi := movavg.Multi{
 		movavg.NewSMA(5),
@@ -221,7 +221,7 @@ func mma(activity *fit.ActivityFile) {
 		DATA.MAMap[1200][i] = avg[6]
 
 		// Map the avg array into Ticks struct:
-		DATA.Ticks[i] = &Tick{
+		DATA.Ticks[i] = &zfit.Tick{
 			T:         i,
 			Timestamp: v.Timestamp,
 			Power:     v.Power,
@@ -287,9 +287,9 @@ func statsu16(data []uint16) (min uint64, max uint64, count int, sum uint64, avg
 	return
 }
 
-func stats64R(interval int, data []float64, kg float64) *MAResult {
+func stats64R(interval int, data []float64, kg float64) *zfit.MAResult {
 	_, max, _, _, avg := stats64(data)
-	res := &MAResult{
+	res := &zfit.MAResult{
 		Interval: interval,
 		KG:       kg,
 		Avg:      avg,
