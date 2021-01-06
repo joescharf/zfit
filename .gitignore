@@ -24,3 +24,4 @@ test.env
 *.fit
 *.xlsx
 notes.md
+data/
