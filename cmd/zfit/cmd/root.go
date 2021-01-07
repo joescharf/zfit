@@ -48,7 +48,6 @@ func init() {
 func GitRootDir() string {
 	root, err := find.Repo()
 	if err != nil {
-		log.WithFields(log.Fields{"err": err}).Errorln("Error finding Root with Git")
 		return ""
 	}
 	return root.Path
