@@ -76,13 +76,6 @@ func (z *Zfit) CritPower() {
 
 	kg := z.Data.KG
 
-	// fmt.Printf("Results from %d Power RECORDS:\n", len(z.Data.Power))
-	// for i, sess := range activity.Sessions {
-	// 	fmt.Printf("Session results for session %d: \n", i)
-	// 	fmt.Printf("  Power: Avg, Max [%d, %d], wkg: [%.2f, %.2f]\n", sess.AvgPower, sess.MaxPower, float64(sess.AvgPower)/kg, float64(sess.MaxPower)/kg)
-	// 	fmt.Printf("  HR: Avg, Max [%d, %d]\n", sess.AvgHeartRate, sess.MaxHeartRate)
-	// }
-
 	for _, v := range INTERVALS {
 		res := stats64R(v, z.Data.MAMap[v][v:], kg)
 		z.Results.MAMax[v] = res
@@ -106,6 +99,11 @@ func (z *Zfit) PrintCritPowerResultsTable() {
 		str := strings.Split(s, " ")
 		table.Append(str)
 	}
+
+	//.95 of 20m
+	ftp := fmt.Sprintf("%s,%.2f,%.2f,%.2f", "95% of 20m", z.Results.MAMax[1200].Avg*.95, z.Results.MAMax[1200].Max*.95, z.Results.MAMax[1200].MaxWkg*.95)
+	str := strings.Split(ftp, ",")
+	table.Append(str)
 
 	fmt.Printf("\nCritical Power Results, (%.2f kg)\n", z.Results.KG)
 	table.Render()

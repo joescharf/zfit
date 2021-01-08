@@ -37,15 +37,20 @@ type Data struct {
 	Ticks       []*Tick
 }
 type Results struct {
-	ProcessedAt time.Time
-	RecordedAt  time.Time
-	FitFile     string
-	KG          float64
-	Power       Stat
-	HR          Stat
-	Cadence     Stat
-	Speed       Stat
-	MAMax       map[int]*MAResult
+	ProcessedAt      time.Time
+	RecordedAt       time.Time
+	FitFile          string
+	KG               float64
+	Power            Stat
+	HR               Stat
+	Cadence          Stat
+	Speed            Stat
+	MAMax            map[int]*MAResult
+	MissingRecs      int
+	TotalElapsedTime time.Duration
+	TotalTimerTime   time.Duration
+	MovingTime       time.Time
+	StoppedTime      time.Time
 }
 type MAResult struct {
 	Interval int

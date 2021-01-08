@@ -37,6 +37,7 @@ func process(args []string) {
 	}
 	z.SetWeight(weightKG)
 	z.CritPower()
+	z.PrintMetaData()
 	z.PrintBasicStats()
 	z.PrintCritPowerResultsTable()
 	z.CritPowerToCSV()

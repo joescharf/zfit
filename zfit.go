@@ -146,6 +146,49 @@ func (z *Zfit) SetBasicStats() {
 	z.Results.Speed.Avg = float64(sumSpeed) / float64(numRecords)
 	z.Results.Cadence.Label = "Cadence"
 	z.Results.Cadence.Avg = float64(sumCadence) / float64(numRecords)
+
+	z.Missing()
+	z.Timing()
+}
+
+func (z *Zfit) Missing() {
+	for i, v := range z.records[1:] {
+		diff := v.Timestamp.Sub(z.records[i].Timestamp)
+
+		delta := int(diff / time.Second)
+		if delta > 1 {
+			fmt.Printf("Missing %v at %d\n", diff, i)
+			z.Results.MissingRecs += delta
+		}
+	}
+}
+
+func (z *Zfit) Timing() {
+	a, _ := z.FitData.Activity()
+	// spew.Dump(a.Sessions)
+	sess := a.Sessions[0]
+	z.Results.TotalElapsedTime = time.Millisecond * time.Duration(sess.TotalElapsedTime)
+	z.Results.TotalTimerTime = time.Millisecond * time.Duration(sess.TotalTimerTime)
+	// for i, v := range z.records[0:] {
+	// }
+}
+func (z *Zfit) PrintMetaData() {
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"Key", "Value"})
+	data := [][]string{
+		{"FitFile", fmt.Sprintf("%s", z.Results.FitFile)},
+		{"Recorded On", fmt.Sprintf("%s", z.Results.RecordedAt.Format("2006-Jan-02 @ 15:04:05Z"))},
+		{"Missing Recs", fmt.Sprintf("%d", z.Results.MissingRecs)},
+		{"Total Elapsed", fmt.Sprintf("%v", z.Results.TotalElapsedTime)},
+		{"Total Timer", fmt.Sprintf("%v", z.Results.TotalTimerTime)},
+	}
+	for _, v := range data {
+		table.Append(v)
+	}
+	fmt.Printf("\nBasic Info for %s\n", z.Results.FitFile)
+	table.Render()
+
 }
 
 func (z *Zfit) PrintBasicStats() {
