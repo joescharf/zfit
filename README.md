@@ -7,11 +7,8 @@
   - [Installation](#installation)
   - [Usage](#usage)
 ## Features
-- Create database snapshots with the `build` command
-- Load database snapshots to a target database
-- Specify multiple target configurations to represent your workflow
-- Sensitive data in configuration file is encrypted
-
+- Analyze Zwift FIT Files and output data to CSV
+- Available as a GO library for embedding into Go applications
 ## Installation
 
 `brew install joescharf/tap/zfit`
