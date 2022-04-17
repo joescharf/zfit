@@ -17,6 +17,7 @@ tmp/
 dist/
 
 ZFIT.code-workspace
+gon.hcl
 
 # Configuration
 .env

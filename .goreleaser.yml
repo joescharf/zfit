@@ -1,0 +1,121 @@
+# This is an example goreleaser.yaml file with some sane defaults.
+# Make sure to check the documentation at http://goreleaser.com
+project_name: zfit
+env_files:
+  github_token: ~/.config/goreleaser/github_token
+before:
+  hooks:
+    # You may remove this if you don't use go modules.
+    - go mod download
+    # you may remove this if you don't need go generate
+    # - go generate ./...
+builds:
+  - id: zfit
+    binary: zfit
+    dir: ./cmd/zfit
+    main: main.go
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+    goarch:
+      - "386"
+      - amd64
+      - arm
+      - arm64
+    goarm:
+      - "7"
+
+  # separate macos build for code-signing
+  - id: zfit-macos
+    binary: zfit
+    dir: ./cmd/zfit
+    main: main.go
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+    goarch:
+      - amd64
+    hooks:
+      post: gon gon.hcl
+
+  # MacOS Universal Binaries
+universal_binaries:
+  - id: zfit-macos
+    name_template: '{{.ProjectName}}_{{.Version}}'    
+    replace: true
+
+archives:
+  - id: zfit
+    builds:
+      - zfit
+      - zfit-macos
+    format: zip
+    replacements:
+      darwin: Darwin
+      linux: Linux
+      windows: Windows
+      386: i386
+      amd64: x86_64
+    name_template: "{{ .ProjectName }}_{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - none*
+
+release:
+  github:
+    owner: joescharf
+    name: zfit
+  # ID of archive to release
+  ids:
+    - zfit
+
+# brew install joescharf/tap/zfit
+brews:
+  - name: zfit
+    # ID of archive to use
+    ids:
+      - zfit
+    tap:
+      owner: joescharf
+      name: tap
+    folder: Formula
+    commit_author:
+      name: releaserbot
+      email: info@joescharf.com
+    homepage: "https://joescharf.com/"
+    description: "Zwift FIT file analyzer"
+    install: |
+      bin.install "zfit"
+
+checksum:
+  name_template: "checksums.txt"
+snapshot:
+  name_template: "{{ .Tag }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+nfpms:
+  - id: zfit
+    package_name: zfit
+    builds:
+      - zfit
+    vendor: Joe Scharf
+    homepage: "https://joescharf.com/"
+    maintainer: Joe Scharf <info@joescharf.com>
+    description: |-
+      Zwift FIT file analyzer.
+      Analyze Zwift FIT files and output data to CSV
+    formats:
+      - apk
+      - deb
+      - rpm
+    replacements:
+      darwin: Darwin
+      linux: Linux
+      windows: Windows      
+    bindir: /usr/bin
