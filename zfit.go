@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/olekukonko/tablewriter"
 	log "github.com/sirupsen/logrus"
 	"github.com/tormoder/fit"
@@ -165,7 +166,7 @@ func (z *Zfit) Missing() {
 
 func (z *Zfit) Timing() {
 	a, _ := z.FitData.Activity()
-	// spew.Dump(a.Sessions)
+	spew.Dump(a.Sessions)
 	sess := a.Sessions[0]
 	z.Results.TotalElapsedTime = time.Millisecond * time.Duration(sess.TotalElapsedTime)
 	z.Results.TotalTimerTime = time.Millisecond * time.Duration(sess.TotalTimerTime)
@@ -198,7 +199,7 @@ func (z *Zfit) PrintBasicStats() {
 	data := [][]string{
 		{"Power", fmt.Sprintf("%.2f", z.Results.Power.Avg), fmt.Sprintf("%.2f", z.Results.Power.Max)},
 		{"HR", fmt.Sprintf("%.2f", z.Results.HR.Avg), fmt.Sprintf("%.2f", z.Results.HR.Max)},
-		{"Speed", fmt.Sprintf("%.2f", z.Results.Speed.Avg), fmt.Sprintf("%.2f", z.Results.Speed.Max)},
+		{"Speed", fmt.Sprintf("%.2f", z.Results.Speed.Avg/1000), fmt.Sprintf("%.2f", z.Results.Speed.Max/1000)},
 		{"Cadence", fmt.Sprintf("%.2f", z.Results.Cadence.Avg), fmt.Sprintf("%.2f", z.Results.Cadence.Max)},
 	}
 	for _, v := range data {

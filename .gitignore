@@ -16,6 +16,8 @@ vendor/
 tmp/
 dist/
 
+ZFIT.code-workspace
+
 # Configuration
 .env
 test.env
