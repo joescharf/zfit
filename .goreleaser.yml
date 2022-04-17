@@ -44,7 +44,7 @@ builds:
   # MacOS Universal Binaries
 universal_binaries:
   - id: zfit-macos
-    name_template: '{{.ProjectName}}_{{.Version}}'    
+    name_template: '{{.ProjectName}}'    
     replace: true
 
 archives:
